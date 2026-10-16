@@ -1,0 +1,326 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NET//GUARD — Security Console</title>
+<style>
+:root {
+  --bg:#050a0e;
+  --panel:#0b141b;
+  --line:#1d3540;
+  --green:#45ff9a;
+  --muted:#829ca8;
+  --blue:#45b9ff;
+  --red:#ff5d69;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:#d9f8e7;
+  font-family:Consolas,"Courier New",monospace;
+  min-height:100vh;
+}
+header{
+  padding:18px 22px;background:#081118;
+  border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;
+  align-items:center;gap:12px;flex-wrap:wrap
+}
+.brand{color:var(--green);font-weight:bold;letter-spacing:2px}
+.badge{
+  border:1px solid #32644b;padding:6px 10px;
+  color:var(--green);font-size:11px
+}
+main{width:min(1200px,96%);margin:24px auto}
+h1{font-size:clamp(25px,4vw,38px);margin:8px 0}
+h2{font-size:15px;color:var(--green);letter-spacing:1px}
+p{color:var(--muted);line-height:1.6}
+.grid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px
+}
+.panel{
+  min-width:0;background:var(--panel);
+  border:1px solid var(--line);padding:17px
+}
+.wide{grid-column:span 2}
+.full{grid-column:1/-1}
+.label{font-size:11px;color:var(--muted);letter-spacing:1px}
+.value{font-size:23px;color:var(--green);margin-top:8px}
+button,.fileButton{
+  display:inline-block;border:1px solid var(--green);
+  background:var(--green);color:#04100a;
+  padding:13px 16px;font:bold 13px Consolas,monospace;
+  cursor:pointer
+}
+button:hover,.fileButton:hover{background:#baffd5}
+button:disabled{opacity:.5;cursor:wait}
+.secondary{background:transparent;color:var(--green)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.track{height:9px;background:#14252d;border:1px solid #28434b;margin:13px 0}
+#bar{height:100%;width:0;background:var(--green);transition:width .25s}
+#terminal{
+  background:#03080b;border:1px solid #152a32;
+  padding:12px;height:260px;overflow:auto;
+  white-space:pre-wrap;overflow-wrap:anywhere;
+  font-size:12px;line-height:1.8
+}
+.logline{color:var(--green)}
+.warn{color:#ffd16b}
+.info{color:var(--blue)}
+#files{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px
+}
+.file{
+  background:#07100e;border:1px solid #234a37;
+  padding:12px;min-width:0;animation:appear .25s ease-out;
+  overflow-wrap:anywhere
+}
+.fileTop{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:var(--muted)}
+.fileName{margin-top:13px;font-size:12px;color:#d9f8e7}
+.fileStatus{font-size:10px;color:var(--green);margin-top:10px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px}
+#networkList{font-size:12px;line-height:2;overflow-wrap:anywhere}
+#ending{
+  display:none;position:fixed;inset:0;z-index:10;
+  background:#020705f5;align-items:center;
+  justify-content:center;text-align:center;padding:20px
+}
+#ending h2{font-size:clamp(35px,8vw,65px);margin:10px;color:var(--green)}
+#ending .box{max-width:540px;border:1px solid var(--green);padding:30px;background:#07100b}
+.small{font-size:11px}
+@keyframes appear{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:760px){
+  .grid{grid-template-columns:1fr}
+  .wide,.full{grid-column:auto}
+  #files{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">NET//GUARD <span style="color:#829ca8">/ SECURITY CONSOLE</span></div>
+  <div class="badge">● DEMO MODE — SIMÜLASYON</div>
+</header>
+
+<main>
+  <p class="label">LOCAL VISUAL SECURITY DEMONSTRATION</p>
+  <h1>Sistem Güvenlik Paneli</h1>
+  <p>Animasyonlu tarama arayüzü. Dosya, ağ ve tehdit kayıtları örnek verilerden oluşur.</p>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="label">SİSTEM DURUMU</div>
+      <div class="value" id="state">HAZIR</div>
+      <p id="substate">Simülasyon başlatılmayı bekliyor.</p>
+    </section>
+    <section class="panel">
+      <div class="label">KONTROL EDİLEN ÖRNEK</div>
+      <div class="value"><span id="count">0</span> / 15</div>
+      <p>Gösterilen sahte kayıt sayısı</p>
+    </section>
+    <section class="panel">
+      <div class="label">GEÇEN SÜRE</div>
+      <div class="value" id="elapsed">00:00</div>
+      <p>Simülasyon süresi</p>
+    </section>
+
+    <section class="panel wide">
+      <h2>▸ TARAMA İLERLEMESİ</h2>
+      <div id="percent">İlerleme: %0</div>
+      <div class="track"><div id="bar"></div></div>
+      <div class="label" id="scanStatus">BEKLEMEDE</div>
+      <div class="actions">
+        <button id="start">▶ SİMÜLASYONU BAŞLAT</button>
+        <button id="reset" class="secondary">↻ SIFIRLA</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>▸ AĞ GÖSTERİMİ</h2>
+      <div id="networkList">
+        Mod: DEMO<br>
+        IP kayıtları: Beklemede<br>
+        Paket sayacı: 0<br>
+        Bağlantı: Simüle ediliyor
+      </div>
+    </section>
+
+    <section class="panel wide">
+      <h2>▸ CANLI TERMİNAL</h2>
+      <div id="terminal" aria-live="polite">[SYSTEM] NET//GUARD başlatıldı.
+[INFO] Demo modu etkin.
+[READY] Başlat düğmesine bas.</div>
+    </section>
+
+    <section class="panel">
+      <h2>▸ GÜVENLİK ÖZETİ</h2>
+      <p>Örnek kayıtlar <span style="color:var(--green)">●</span> hazır</p>
+      <p>Gerçek sistem taraması <span style="color:var(--red)">●</span> yapılmıyor</p>
+      <p class="small">Bu sayfa antivirüs değildir.</p>
+    </section>
+
+    <section class="panel full">
+      <h2>▸ DOSYA PENCERELERİ <span id="fileCount">[0/15]</span></h2>
+      <p class="small">Aşağıdaki kartlar yalnızca ekranda oluşturulur. Bilgisayarındaki dosyalar açılmaz.</p>
+      <div id="files"></div>
+    </section>
+  </div>
+</main>
+
+<section id="ending">
+  <div class="box">
+    <div class="badge">SIMULATION COMPLETE</div>
+    <h2>ŞAKA LAN!</h2>
+    <p>Gösterilen dosya pencereleri ve ağ kayıtları animasyondu. Gerçek bilgisayarına veya hesaplarına erişilmedi.</p>
+    <button id="again">↻ TEKRAR OYNAT</button>
+  </div>
+</section>
+
+<script>
+const $ = id => document.getElementById(id);
+const sampleFiles = [
+  "system_check.tmp","security_report.demo","network_trace.fake",
+  "firewall_status.log","memory_scan.sim","unknown_process.test",
+  "threat_sample.fake","user_profile.demo","connection_cache.tmp",
+  "defender_event.log","startup_check.sim","browser_data.demo",
+  "access_report.fake","system_integrity.test","scan_result.demo"
+];
+
+// TEST-NET aralıklarıdır; dokümantasyon örnekleri için ayrılmış IP'lerdir.
+const demoIPs = ["192.0.2.14","198.51.100.23","203.0.113.8"];
+let timers = [];
+let startedAt = 0;
+let runToken = 0;
+let index = 0;
+
+function later(fn, delay) {
+  const id = setTimeout(fn, delay);
+  timers.push(id);
+}
+function stamp() {
+  return new Date().toLocaleTimeString("tr-CA", {hour12:false});
+}
+function log(message, cls="logline") {
+  const terminal = $("terminal");
+  const line = document.createElement("div");
+  line.className = cls;
+  line.textContent = "[" + stamp() + "] " + message;
+  terminal.appendChild(line);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+function addFile(name, i) {
+  const card = document.createElement("article");
+  card.className = "file";
+
+  const top = document.createElement("div");
+  top.className = "fileTop";
+  top.textContent = "SAMPLE OBJECT " + String(i+1).padStart(2,"0");
+
+  const state = document.createElement("div");
+  state.textContent = "● DEMO";
+  state.style.color = "var(--green)";
+
+  const nameEl = document.createElement("div");
+  nameEl.className = "fileName";
+  nameEl.textContent = name;
+
+  const status = document.createElement("div");
+  status.className = "fileStatus";
+  status.textContent = "✓ Örnek kayıt gösterildi";
+
+  card.append(top, state, nameEl, status);
+  $("files").appendChild(card);
+}
+function updateClock(token) {
+  if (token !== runToken) return;
+  const seconds = Math.floor((Date.now()-startedAt)/1000);
+  $("elapsed").textContent =
+    String(Math.floor(seconds/60)).padStart(2,"0") + ":" +
+    String(seconds%60).padStart(2,"0");
+  if (index < sampleFiles.length) later(() => updateClock(token), 500);
+}
+function reset() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  runToken++;
+  index = 0;
+  $("state").textContent = "HAZIR";
+  $("substate").textContent = "Simülasyon başlatılmayı bekliyor.";
+  $("count").textContent = "0";
+  $("elapsed").textContent = "00:00";
+  $("percent").textContent = "İlerleme: %0";
+  $("bar").style.width = "0%";
+  $("scanStatus").textContent = "BEKLEMEDE";
+  $("fileCount").textContent = "[0/15]";
+  $("files").replaceChildren();
+  $("terminal").replaceChildren();
+  log("NET//GUARD demo terminali hazır.");
+  log("Gerçek dosya veya ağ taraması yapılmayacak.", "warn");
+  $("networkList").innerHTML =
+    "Mod: DEMO<br>IP kayıtları: Beklemede<br>Paket sayacı: 0<br>Bağlantı: Simülasyon";
+  $("start").disabled = false;
+  $("start").textContent = "▶ SİMÜLASYONU BAŞLAT";
+  $("ending").style.display = "none";
+}
+function startDemo() {
+  reset();
+  const token = runToken;
+  startedAt = Date.now();
+  $("state").textContent = "ÇALIŞIYOR";
+  $("substate").textContent = "Görsel simülasyon sürüyor.";
+  $("scanStatus").textContent = "ÖRNEK KAYITLAR GÖSTERİLİYOR";
+  $("start").disabled = true;
+  $("start").textContent = "SİMÜLASYON ÇALIŞIYOR...";
+  log("Görsel tarama başlatıldı.");
+  log("Örnek dosya listesi yükleniyor.");
+  updateClock(token);
+
+  function step() {
+    if (token !== runToken) return;
+
+    if (index < sampleFiles.length) {
+      const i = index;
+      const pct = Math.round((i+1)/sampleFiles.length*100);
+      addFile(sampleFiles[i], i);
+      log("Örnek nesne gösterildi: " + sampleFiles[i]);
+      log("Demo ağ kaydı: " + demoIPs[i%demoIPs.length], "info");
+
+      $("count").textContent = String(i+1);
+      $("fileCount").textContent = "["+(i+1)+"/15]";
+      $("percent").textContent = "İlerleme: %"+pct;
+      $("bar").style.width = pct+"%";
+      $("networkList").innerHTML =
+        "Mod: DEMO<br>" +
+        "Son örnek IP: " + demoIPs[i%demoIPs.length] + "<br>" +
+        "Örnek paket sayacı: " + ((i+1)*24) + "<br>" +
+        "Bağlantı: Simüle ediliyor";
+
+      index++;
+      later(step, 650);
+    } else {
+      $("state").textContent = "TAMAMLANDI";
+      $("substate").textContent = "Görsel simülasyon tamamlandı.";
+      $("scanStatus").textContent = "DEMO TAMAMLANDI";
+      $("start").disabled = false;
+      $("start").textContent = "▶ YENİDEN BAŞLAT";
+      log("15 örnek kart gösterildi. Gerçek sistem taranmadı.");
+      later(() => {
+        if (token === runToken) $("ending").style.display = "flex";
+      }, 700);
+    }
+  }
+  step();
+}
+$("start").addEventListener("click", startDemo);
+$("reset").addEventListener("click", reset);
+$("again").addEventListener("click", startDemo);
+reset();
+</script>
+</body>
+</html>
